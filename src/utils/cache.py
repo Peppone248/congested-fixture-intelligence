@@ -1,4 +1,15 @@
-"""Filesystem cache for scraped HTML pages and expensive intermediate frames."""
+"""On-disk cache for scraped HTML pages.
+
+Both scrapers (FBref, Transfermarkt) share this one caching layer so the
+retry, rate-limit, and layout policies live in exactly one place. The layout
+mirrors the pattern used in the injury-analytics project's Transfermarkt
+scraper:
+
+    <cache_dir>/<hash[:2]>/<hash>.html
+
+The caller supplies ``cache_dir`` (typically ``data/raw/fbref/`` or
+``data/raw/transfermarkt/``) so the same primitives serve any source.
+"""
 
 from __future__ import annotations
 
@@ -6,52 +17,52 @@ import hashlib
 from pathlib import Path
 
 
-# DESIGN: cache keys are derived from the *canonical* request URL rather than
-# from ad-hoc labels, so two call sites that fetch the same page cannot
-# accidentally maintain divergent copies of the same content.
-def cache_key(url: str) -> str:
-    """Deterministic cache key for a URL.
+# DESIGN: use md5 not sha256 — this hash is a filename derived from a URL,
+# not a security primitive; the 128-bit space is more than sufficient to
+# avoid collisions across a season's worth of pages, and md5 is shorter.
+def cache_path_for_url(url: str, cache_dir: Path | str) -> Path:
+    """Deterministic on-disk path for the cached HTML of a URL.
 
     Args:
-        url: Request URL, exactly as issued to the scraper.
+        url: Request URL, exactly as it will be issued to the source.
+        cache_dir: Root directory for this source's cache
+            (e.g. ``data/raw/fbref/``).
 
     Returns:
-        Hex digest suitable as a filename stem.
+        Path of the form ``<cache_dir>/<hash[:2]>/<hash>.html``. The path
+        may or may not exist on disk — the function does not create it.
 
     Raises:
         ValueError: If ``url`` is empty.
     """
-    raise NotImplementedError
+    if not url:
+        raise ValueError("url must be a non-empty string")
+
+    # DESIGN: hash the URL as UTF-8 bytes so equivalent strings on different
+    # platforms (Linux/macOS/Windows notebooks) collide deterministically.
+    digest = hashlib.md5(url.encode("utf-8")).hexdigest()
+
+    # DESIGN: 2-char hex fanout caps any single directory at ~256 siblings
+    # even across thousands of pages — matters on ext4 where directory
+    # scans slow down noticeably past a few thousand entries.
+    return Path(cache_dir) / digest[:2] / f"{digest}.html"
 
 
-def read_cached(cache_dir: Path, url: str) -> str | None:
-    """Return cached response text for ``url`` if present.
-
-    Args:
-        cache_dir: Root directory holding cached pages.
-        url: Request URL.
-
-    Returns:
-        Cached response body, or ``None`` if the key is not on disk.
-
-    Raises:
-        OSError: On unexpected filesystem failure.
-    """
-    raise NotImplementedError
-
-
-def write_cached(cache_dir: Path, url: str, content: str) -> Path:
-    """Persist a response body to disk under a URL-derived key.
+def is_cached(url: str, cache_dir: Path | str) -> bool:
+    """Return whether a cached copy of ``url`` already exists on disk.
 
     Args:
-        cache_dir: Root directory holding cached pages.
         url: Request URL.
-        content: Response body to persist.
+        cache_dir: Root directory for this source's cache.
 
     Returns:
-        Path of the written cache file.
+        ``True`` if the derived cache path exists as a regular file,
+        ``False`` otherwise.
 
     Raises:
-        OSError: If the cache directory is not writable.
+        ValueError: If ``url`` is empty.
     """
-    raise NotImplementedError
+    # DESIGN: use ``is_file`` rather than ``exists`` so a bogus directory
+    # sharing the target name does not fool the caller into skipping the
+    # fetch and then failing on read.
+    return cache_path_for_url(url, cache_dir).is_file()
