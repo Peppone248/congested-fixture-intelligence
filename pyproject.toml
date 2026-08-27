@@ -1,0 +1,64 @@
+# DESIGN: PEP 621 metadata + setuptools backend keeps tooling standard while
+# allowing editable installs of the src/ layout for notebooks and the Streamlit app.
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "congested-fixture-intelligence"
+version = "0.1.0"
+description = "Data-driven analysis of fixture congestion, rotation, and player fatigue for elite football squads."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "piccininnig5", email = "piccininnig5@gmail.com" }]
+keywords = ["football", "soccer", "analytics", "fatigue", "rotation", "optimization"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+# DESIGN: dependencies mirror requirements.txt so `pip install .` and
+# `pip install -r requirements.txt` produce equivalent environments.
+dependencies = [
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "lightgbm",
+    "shap",
+    "pulp",
+    "econml",
+    "dowhy",
+    "beautifulsoup4",
+    "requests",
+    "lxml",
+    "streamlit",
+    "matplotlib",
+    "seaborn",
+    "soccerdata",
+    "statsbombpy",
+    "mplsoccer",
+    "pyyaml",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "ruff", "mypy", "ipykernel"]
+
+[project.urls]
+Repository = "https://github.com/peppone248/congested-fixture-intelligence"
+
+# DESIGN: src/ layout prevents accidental imports from the working tree
+# during tests and keeps the installable package boundary explicit.
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"

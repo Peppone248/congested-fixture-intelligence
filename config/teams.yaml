@@ -1,0 +1,15 @@
+# DESIGN: teams and seasons are configuration rather than code so a new target
+# (club/season) can be added without touching scraper or pipeline modules.
+# DESIGN: seed with Atalanta 2023-24 — a European campaign (Europa League winner)
+# plus Serie A and Coppa Italia produces the fixture congestion this project studies.
+teams:
+  - name: Atalanta
+    fbref_id: cd3b9bc6
+    transfermarkt_id: 800
+    country: Italy
+    seasons:
+      - "2023-2024"
+    competitions:
+      - Serie A
+      - Coppa Italia
+      - UEFA Europa League

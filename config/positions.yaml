@@ -1,0 +1,32 @@
+# DESIGN: positional mapping needs to be data-driven because FBref, Transfermarkt,
+# and StatsBomb use overlapping-but-different labels; the pipeline normalises to
+# these coarse groups before building depth charts.
+positions:
+  GK:
+    aliases: [GK, Goalkeeper, TW, Portiere]
+  CB:
+    aliases: [CB, DF, Centre-Back, Central Defender, Defender Centre]
+  FB:
+    aliases: [LB, RB, WB, LWB, RWB, Full-Back, Wing-Back]
+  DM:
+    aliases: [DM, CDM, Defensive Midfield]
+  CM:
+    aliases: [CM, MF, Central Midfield]
+  AM:
+    aliases: [AM, CAM, Attacking Midfield]
+  W:
+    aliases: [LW, RW, LM, RM, Winger]
+  CF:
+    aliases: [CF, ST, FW, Centre-Forward, Striker, Second Striker, SS]
+
+# DESIGN: formation templates carry the position slots each shape requires so
+# the optimizer can validate lineups against a chosen tactical setup.
+formations:
+  "3-4-2-1":
+    slots: [GK, CB, CB, CB, FB, CM, CM, FB, AM, AM, CF]
+  "3-4-3":
+    slots: [GK, CB, CB, CB, FB, CM, CM, FB, W, CF, W]
+  "4-3-3":
+    slots: [GK, FB, CB, CB, FB, DM, CM, CM, W, CF, W]
+  "4-2-3-1":
+    slots: [GK, FB, CB, CB, FB, DM, DM, W, AM, W, CF]

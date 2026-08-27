@@ -1,0 +1,27 @@
+# DESIGN: congestion tiers are defined as a *rolling* count of matches within
+# a lookback window rather than raw fixture spacing — this captures cumulative
+# load, not just the single previous rest interval.
+window_days: 21
+
+# DESIGN: thresholds are inclusive lower bounds. A rolling count of N matches
+# in the last `window_days` puts the fixture into the first tier whose
+# `min_matches` it meets. Tuned to Serie A + European midweek reality.
+tiers:
+  NORMAL:
+    min_matches: 0
+    description: "One match per week or fewer."
+  MODERATE:
+    min_matches: 4
+    description: "Two matches per week for at least one week in the window."
+  HEAVY:
+    min_matches: 6
+    description: "Sustained two-per-week pace across the window."
+  EXTREME:
+    min_matches: 8
+    description: "Three matches per week or persistent <72h turnarounds."
+
+# DESIGN: rest_days is a per-match override so a fixture with an unusually short
+# turnaround is escalated even when the rolling count is low.
+rest_overrides:
+  EXTREME_if_rest_days_lte: 2
+  HEAVY_if_rest_days_lte: 3

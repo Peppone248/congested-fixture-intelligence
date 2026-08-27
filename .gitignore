@@ -1,0 +1,32 @@
+# DESIGN: raw scrape output is regenerable and can be very large; keep it local only.
+data/raw/*
+!data/raw/.gitkeep
+
+# Byte-compiled / caches
+*.pyc
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# DESIGN: cached HTML pages from FBref / Transfermarkt scrapes must never be committed
+# (bandwidth, ToS, and diff noise), and would otherwise slip in as *.html.
+*.html
+
+# IDEs / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Notebooks
+.ipynb_checkpoints/
