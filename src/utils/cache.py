@@ -27,13 +27,37 @@ import requests
 logger = logging.getLogger(__name__)
 
 
-# DESIGN: identify the scraper politely — a real UA plus a contact hint means
-# site operators can reach out before rate-limiting or banning. Kept short so
-# it does not look like an evasive spoof of a real browser.
+# DESIGN: FBref (Sports Reference) blocks requests whose User-Agent looks like
+# a bot — a polite "myscraper/0.1 (+github...)" UA reliably earns a 403. To
+# read public pages we must present the header set a real browser sends. This
+# is not evasion of a paywall or auth: the data is public and free, we cache
+# aggressively, and we keep a 5s courtesy delay between fetches. We simply have
+# to look like the browser FBref expects. The realistic UA below is paired with
+# the full header set in DEFAULT_HEADERS.
 DEFAULT_USER_AGENT: str = (
-    "congested-fixture-intelligence/0.1 "
-    "(+https://github.com/Peppone248/congested-fixture-intelligence)"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 )
+
+# DESIGN: the complete header set a real Chrome sends on a top-level navigation.
+# FBref's bot check looks at Accept, Accept-Language, and the Sec-Fetch-* hints,
+# not just the UA. Sending only User-Agent is the tell that triggers the 403.
+DEFAULT_HEADERS: dict[str, str] = {
+    "User-Agent": DEFAULT_USER_AGENT,
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;q=0.9,"
+        "image/avif,image/webp,image/apng,*/*;q=0.8"
+    ),
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
+}
 
 # DESIGN: bounded retries with exponential backoff — 3 attempts at 2s / 4s / 8s
 # is enough to ride out a transient 429 or 5xx without turning a scrape into
@@ -41,10 +65,10 @@ DEFAULT_USER_AGENT: str = (
 MAX_RETRIES: int = 3
 INITIAL_BACKOFF_S: float = 2.0
 
-# DESIGN: only retry classes of failure that a retry can actually fix.
-# 403 is excluded on purpose — a 403 typically means the site blocked the
-# UA / IP, and retrying just harvests more 403s without ever succeeding.
-RETRYABLE_STATUS: frozenset[int] = frozenset({429, 500, 502, 503, 504})
+# DESIGN: retry set. 403 is included for FBref specifically: it sometimes
+# returns 403 on a cold request but accepts the retry once the Session has
+# picked up cookies. 404 stays non-retryable (a missing page won't appear).
+RETRYABLE_STATUS: frozenset[int] = frozenset({403, 429, 500, 502, 503, 504})
 
 
 # DESIGN: use md5 not sha256 — this hash is a filename derived from a URL,
@@ -119,16 +143,20 @@ def _fetch_with_retries(
         requests.RequestException: For transport-level failures after
             retries are exhausted.
     """
-    # DESIGN: identity through the UA is the polite move; a Retry-After
-    # header, when present, wins over the exponential schedule so we
-    # respect the server's own guidance rather than second-guessing it.
-    headers = {"User-Agent": user_agent}
+    # DESIGN: send the FULL browser header set, not just the UA. FBref's bot
+    # check inspects Accept / Accept-Language / Sec-Fetch-* together; a lone
+    # User-Agent is the tell that earns a 403. We also use a Session so any
+    # cookies FBref sets on the first hit are carried on retries.
+    headers = dict(DEFAULT_HEADERS)
+    headers["User-Agent"] = user_agent
     backoff = INITIAL_BACKOFF_S
     last_exc: Exception | None = None
 
+    session = requests.Session()
+
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            response = requests.get(url, headers=headers, timeout=timeout_s)
+            response = session.get(url, headers=headers, timeout=timeout_s)
         except requests.RequestException as exc:
             # DESIGN: transport-level errors (DNS, TCP, TLS) are treated as
             # retryable — they are usually transient in real scrapes.

@@ -4,7 +4,7 @@
 # plus Serie A and Coppa Italia produces the fixture congestion this project studies.
 teams:
   - name: Atalanta
-    fbref_id: cd3b9bc6
+    fbref_id: 922493f3
     transfermarkt_id: 800
     country: Italy
     seasons:

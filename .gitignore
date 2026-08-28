@@ -12,6 +12,7 @@ __pycache__/
 # Environment / secrets
 .env
 .env.*
+.venv
 !.env.example
 
 # DESIGN: cached HTML pages from FBref / Transfermarkt scrapes must never be committed
@@ -30,3 +31,4 @@ dist/
 
 # Notebooks
 .ipynb_checkpoints/
+.venv/Lib/site-packages/py.py
