@@ -32,3 +32,24 @@ Design choices worth remembering:
   the UA and retrying will just get another 403.
 - **Logging instead of print**: notebooks and Streamlit both capture the
   `logging` output; `print` gets lost in the Streamlit process.
+
+## 2026-08-31 — Real data acquired; Family-1 load features
+Cloudflare blocked the custom scraper (403); routed downloads through
+soccerdata's headless browser (`src/scrapers/downloader.py`) while keeping our
+parser for the all-competitions pages. Acquired real Atalanta 2023-24: 56-match
+calendar, 42-player roster, 1,497 player-match rows.
+
+Congestion tiers recalibrated to be recovery-hours driven (count-driven
+over-classified >50% of the season as HEAVY). On real data: 61% NORMAL / 14%
+MODERATE / 14% HEAVY / 11% EXTREME, EXTREME localising to the Apr–May Europa
+run-in.
+
+Family-1 load features (`src/fatigue/load_features.py`):
+- Calendar cross-join makes rests visible (2,184 player-fixture rows).
+- Weighted rest (continuous, from minutes) replaces the "<45 min = rest" rule.
+- Match-based counters replace day-based (avoids temporal saturation).
+- Added `fatigue_trend` (EWMA of per-match load) and `avg_weekly_minutes`.
+- Anti-leakage verified: every player's first fixture has zero load.
+
+Descriptive-stats script + 4 figures: `scripts/describe_family1.py`.
+Documented all decisions and 4 dataset edge cases in `docs/METHODOLOGY.md`.

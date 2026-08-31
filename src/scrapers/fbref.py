@@ -517,17 +517,35 @@ def fetch_team_roster(
     # So we use BeautifulSoup to extract links, then join with the table data.
 
     soup = BeautifulSoup(clean_html, "lxml")
-    stats_table = soup.find("table", {"id": "stats_standard_combined"})
+
+    # DESIGN: the roster table's id is "stats_standard_{league_id}" — the
+    # numeric suffix is FBref's league id (e.g. 11 for Serie A) and differs
+    # per league, so we can't hardcode it. Match by prefix instead. We also
+    # keep "combined" (multi-competition team pages) and the bare name as
+    # fallbacks, covering season-complete, in-progress, and combined views.
+    stats_table = None
+    for candidate in soup.find_all("table"):
+        tid = candidate.get("id", "")
+        if tid.startswith("stats_standard"):
+            stats_table = candidate
+            logger.info("Found roster table: id=%r", tid)
+            break
 
     if stats_table is None:
-        # DESIGN: fallback — some team pages use a different table ID
-        # depending on whether the season is complete or in-progress.
-        stats_table = soup.find("table", {"id": "stats_standard"})
+        # Explicit fallbacks for older/variant page layouts
+        for fallback_id in ("stats_standard_combined", "stats_standard"):
+            stats_table = soup.find("table", {"id": fallback_id})
+            if stats_table is not None:
+                break
 
     if stats_table is None:
+        # DESIGN: fail loudly with the ids we DID find, so a future FBref
+        # layout change is diagnosable from the error alone.
+        available = [t.get("id", "(none)") for t in soup.find_all("table")]
         raise ValueError(
             f"Could not find roster table for team={team_id} season={season}. "
-            f"FBref may have changed their page structure."
+            f"Expected an id starting with 'stats_standard'. "
+            f"Tables present: {available}"
         )
 
     # Extract player links: <a href="/en/players/{id}/Player-Name">

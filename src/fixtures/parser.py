@@ -36,13 +36,16 @@ logger = logging.getLogger(__name__)
 
 REQUIRED_INPUT_COLUMNS: set[str] = {"date", "competition", "opponent", "venue"}
 
-# DESIGN: European competitions get a higher travel-load weight. This list is
-# matched case-insensitively against the competition name. It's a heuristic —
-# we don't know actual travel distances, but "played a European away leg"
-# is a reasonable proxy for the flight + time-zone + logistics burden that
-# domestic away matches don't carry.
+# DESIGN: European competitions get a higher travel-load weight. Matched
+# case-insensitively as substrings against the competition name. These are the
+# ACTUAL labels FBref uses (verified against real Atalanta 2023-24 data), which
+# differ from their full official names: FBref writes "Europa Lg", not "UEFA
+# Europa League", and "Champions Lg", not "UEFA Champions League".
 EUROPEAN_COMPETITIONS: tuple[str, ...] = (
-    "champions league",
+    "champions lg",
+    "europa lg",
+    "conf lg",           # Conference League
+    "champions league",  # keep full names too, for robustness across sources
     "europa league",
     "conference league",
     "uefa",
